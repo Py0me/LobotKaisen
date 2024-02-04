@@ -16,6 +16,7 @@ def main():
 #		await ctx.send("test")
 
 	bot.load_extension('modules.sync')
+	bot.load_extension('modules.voting')
 	bot.start(token)
 
 if __name__ == '__main__':
