@@ -1,22 +1,24 @@
 import interactions
-
+import logging
 
 def main():
-	with open('token', 'r', encoding='utf8') as tok_file:
-		token = tok_file.readline().strip()
+	logging.basicConfig()
+	cls_log = logging.getLogger('LogKaisen')
+	cls_log.setLevel(logging.DEBUG)
 
 	bot = interactions.Client(
 		intents=interactions.Intents.DEFAULT | interactions.Intents.MESSAGE_CONTENT,
 		sync_interactions=True,
 		asyncio_debug=True,
+		logger=cls_log
 	)
 
-#	@slash_command(name="gainaccess", description="Gain Access to the Secret Chat by inviting someone!", scopes=[870046872864165888])
-#	async def gainaccess(ctx: SlashContext):
-#		await ctx.send("test")
+	bot.load_extension('.modules.sync', __package__)
+	bot.load_extension('.modules.voting', __package__)
 
-	bot.load_extension('modules.sync')
-	bot.load_extension('modules.voting')
+	with open('token', 'r', encoding='utf8') as tok_file:
+		token = tok_file.readline().strip()
+
 	bot.start(token)
 
 if __name__ == '__main__':
