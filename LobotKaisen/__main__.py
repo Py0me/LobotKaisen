@@ -1,6 +1,12 @@
 import interactions
 import logging
 
+EXTENSION_LIST = (
+	'voting',
+	'vip_invite',
+	#'jjk_shitpost',
+)
+
 def main():
 	logging.basicConfig()
 	cls_log = logging.getLogger('LogKaisen')
@@ -13,8 +19,8 @@ def main():
 		logger=cls_log
 	)
 
-	bot.load_extension('.modules.sync', __package__)
-	bot.load_extension('.modules.voting', __package__)
+	for ext in EXTENSION_LIST:
+		bot.load_extension('.bot_cmd.%s' % ext, __package__)
 
 	with open('token', 'r', encoding='utf8') as tok_file:
 		token = tok_file.readline().strip()
