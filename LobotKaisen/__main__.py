@@ -4,7 +4,7 @@ import logging
 EXTENSION_LIST = (
 	'voting',
 	'vip_invite',
-	#'jjk_shitpost',
+	'jjk_shitpost',
 )
 
 def main():

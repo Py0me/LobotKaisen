@@ -10,7 +10,7 @@ import interactions
 
 class VIPInviteExt(Extension):
 	@slash_command(name='invite', description='Invite another user to join the lobotomy and receive VIP rank for 1 week in return', scopes=[931930956284178512])
-	@slash_option(name='vip_receiver', description='The user which should be rewarded with the VIP rank', opt_type=OptionType.USER, required=False)
+	@slash_option(name='vip-receiver', argument_name='vip_receiver', description='The user which should be rewarded with the VIP rank', opt_type=OptionType.USER, required=False)
 	async def invite(self, ctx: SlashContext, vip_receiver: User):
 		if vip_receiver is None:
 			vip_receiver = ctx.user
