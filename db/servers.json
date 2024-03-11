@@ -1,0 +1,26 @@
+[
+	{
+		"name": "Lobotomy Kaisen",
+		"id": 1192206024002785300,
+		"channels": {
+			"announcement": 1200350797892948008,
+			"voting": 1192421921019662386,
+			"royallobotomy": 1200072936267198535
+		},
+		"roles": {
+			"Lobotomy King/Queen": 1198362005023772672
+		}
+	},
+	{
+		"name": "Bot Development",
+		"id": 931930956284178512,
+		"channels": {
+			"announcement": 1203409239352025209,
+			"voting": 1202722215942946976,
+			"royallobotomy": 1206961818288001054
+		},
+		"roles": {
+			"Lobotomy King/Queen": 1206305815422570536
+		}
+	}
+]
