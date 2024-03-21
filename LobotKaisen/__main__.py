@@ -24,83 +24,115 @@ STATUS_MSG = (
 )
 
 ROYAL_GIFS = {
-	'sukuna' : ('7333648534605432939',),
-	'gojo'   : ('22565583',),
-	'toji'   : ('9488810019021905520',),
-	'megumi' : ('20306105',),
-	'nobara' : ('21684978',),
-	'shoko'  : ('6843298019380912167',),
-	'todo'   : ('20911000',),
-	'mahito' : ('374772637974082172',),
-	'geto'   : ('26781155',),
-	'hakari' : ('11562479764200212001',),
-	'yuji'   : ('14791240713988465127',),
+	'Sukuna' : ('7333648534605432939',),
+	'Gojo'   : ('22565583',),
+	'Toji'   : ('9488810019021905520',),
+	'Megumi' : ('20306105',),
+	'Nobara' : ('21684978',),
+	'Shoko'  : ('6843298019380912167',),
+	'Todo'   : ('20911000',),
+	'Mahito' : ('374772637974082172',),
+	'Geto'   : ('26781155',),
+	'Hakari' : ('11562479764200212001',),
+	'Yuji'   : ('14791240713988465127',),
 }
 
 @listen(interactions.events.Ready)
 async def on_start(event: interactions.events.Ready):
-	i = 0
+	status_iter = iter(STATUS_MSG, None)
+
+	# TODO: replace those with connection objects (see `__main__.py:on_message()`)
 	await db.init('lobotomy-db.sqlite')
 	db.init_json('db/servers.json')
+
 	async with db.db_conn.cursor() as db_cur:
 		while True:
-			await event.bot.change_presence(activity=STATUS_MSG[i])
-			i = i + 1 if i + 1 < len(STATUS_MSG) else 0
-			fetch_result = await get_botvar('last_day')
-			next_time = time.time()
+			status_msg = next(status_iter)
+
+			if status_msg is None:
+				status_iter = iter(STATUS_MSG, None)
+				continue
+
+			await event.bot.change_presence(activity=status_msg)
+
+			previous_time = await get_botvar('last_day')
+			current_time = time.time()
 			json_obj = db.next_json()
+
 			while (json_obj := db.next_json()) is not None:
-				tieguild = await event.bot.fetch_guild(json_obj['id'])
-				if tieguild is None:  # NOTE: if the guild fetch function fails we assume the bot is not part of the server
+				current_guild = await event.bot.fetch_guild(json_obj['id'])
+
+				if current_guild is None:  # NOTE: if the guild fetch function fails we assume the bot is not part of the server and skip to next guild
 					continue
+
 				candidates = []
-				if fetch_result is None or not same_minute(time.gmtime(fetch_result), time.gmtime(next_time)):
-					fetch_result = await get_botvar('king_id', json_obj['id'])
-					if fetch_result is not None:
-						tiebreaker = fetch_result
-						tiemember = await tieguild.fetch_member(tiebreaker)
-						await tiemember.remove_role(json_obj['roles']['Lobotomy King/Queen'])
+
+				if previous_time is None or not same_minute(previous_time, current_time):
+					king_id = await get_botvar('king_id', json_obj['id'])
+
+					if king_id is not None:
+						elected_king = await current_guild.fetch_member(king_id)
+						await elected_king.remove_role(json_obj['roles']['Lobotomy King/Queen'])
+
 					# TODO: externalize this to a function
 					exec_result = await db_cur.execute(
 						'SELECT candidate_id FROM votes WHERE vote_count = (SELECT max(vote_count) FROM votes)'
 					)
+
 					async for row in exec_result:
 						candidates.append(row[0])
+
 				if candidates:
-					tiebreaker = random.choice(candidates)
-					tiemember = await tieguild.fetch_member(tiebreaker) # FIXME: bot might crash if member leaves
-					tiechannel = await tieguild.fetch_channel(json_obj['channels']['announcement'])
-					tiechannel2 = await tieguild.fetch_channel(json_obj['channels']['royallobotomy'])
-					gif = random.choice(tuple(ROYAL_GIFS.keys()))
-					await tiechannel.send(
+					elected_king = await current_guild.fetch_member(random.choice(candidates)) # FIXME: bot might crash if member leaves
+					announce_channel = await current_guild.fetch_channel(json_obj['channels']['announcement'])
+					royal_channel = await current_guild.fetch_channel(json_obj['channels']['royallobotomy'])
+
+					gif_character = random.choice(tuple(ROYAL_GIFS.keys()))
+
+					await announce_channel.send(
 						'Congratulations, <@%d>, you are now the Lobotomy King/Queen for today.\n'
 						'Be sure to leave a royal message for everyone to see in <#%d>!\n'
 						'\n'
 						'[%s is proud of you](https://tenor.com/view/%s)' %
-						(tiemember.id, tiechannel2.id, gif, random.choice(ROYAL_GIFS[gif]))
+						(elected_king.id, roayal_channel.id, gif_character, random.choice(ROYAL_GIFS[gif_character]))
 					)
-					perm_over = PermissionOverwrite.for_target(await tieguild.fetch_role(json_obj['roles']['Lobotomy King/Queen']))
+
+					perm_over = PermissionOverwrite.for_target(await current_guild.fetch_role(json_obj['roles']['Lobotomy King/Queen']))
 					perm_over.add_allows(Permissions.SEND_MESSAGES)
-					await tiechannel2.edit_permission(perm_over)
+					await royal_channel.edit_permission(perm_over)
+
 					await set_botvar('msg_id_lobotomyking', 0, json_obj['id'])
-					await tiemember.add_role(json_obj['roles']['Lobotomy King/Queen']) # in tieguild due the tiebreaker (what?????)
-					await set_botvar('king_id', int(tiemember.id), json_obj['id'])
+					await elected_king.add_role(json_obj['roles']['Lobotomy King/Queen']) # in tieguild due the tiebreaker (what?????)
+					await set_botvar('king_id', int(elected_king.id), json_obj['id'])
 
 					# FIXME: may no longer drop the entire table, as that would remove all global votes (gg)
+					# BEGIN FIXME BLOCK
 					exec_result = await db_cur.execute( #dropz za(za) @kkkingk👑👑👑 #hashtagg frnz revloutin 🤑🤑🤑🥵 I make better videos than penguinz0 -> https://youtu.be/-WdGSqeXCA0
 						'DROP TABLE votes'
 					)
+
 					with open('db/voting.sql', 'r', encoding='utf-8') as script_file:
 						await db_cur.executescript(script_file.read())
-			await set_botvar('last_day', int(next_time))
+					# END FIXME BLOCK
+
+			await set_botvar('last_day', int(current_time))
 			await db.db_conn.commit()
 			await asyncio.sleep(10)
 
 @listen(interactions.api.events.MessageCreate)
 async def on_message(event: interactions.api.events.MessageCreate):
 	# TODO: add reentrant JSON connections to avoid `next_json()` race conditions
+	raise NotImplementedError('TODO: add reentrant JSON connections to avoid `next_json()` race conditions')
 
-	guild = search_guild(event.bot.guilds, 'Bot Development')
+	# NOTE: variable names here are not fixed, as the entire logic
+	#       in this function block will have to be rewired in the
+	#       first place (see IMPL, TODO)
+
+	# IMPL: The function is defined to revoke SEND_MESSAGES permissions
+	#       of the Lobotomy King role after the daily message has been
+	#       posted to the royal channel. The rights will only be restored
+	#       after the next king is elected.
+	messaged_guild = event.message.channel.guild
 	tuple2 = (int(event.message.channel.id), search_channelid(guild.channels, 'royallobotomy'), int(event.message.author.id), await get_botvar('king_id'))
 	event.bot.logger.debug('channel_id: %d; guild.channels: %s; author_id: %d; king_id: %d' % tuple2)
 	if not (tuple2[0] == tuple2[1] and tuple2[2] == tuple2[3]):
