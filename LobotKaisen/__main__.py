@@ -52,7 +52,7 @@ async def on_start(event: interactions.events.Ready):
 
 		await event.bot.change_presence(activity=status_msg)
 
-		previous_time = await sql_db['bot_vars'].get_variable('last_day', None)
+		previous_time = await sql_db['bot_vars'].get_variable('last_day', 0)
 		current_time = time.time()
 
 		for json_obj in json_db:
@@ -93,13 +93,13 @@ async def on_start(event: interactions.events.Ready):
 				perm_over.add_allows(Permissions.SEND_MESSAGES)
 				await royal_channel.edit_permission(perm_over)
 
-				await sql_db['bot_vars'].set_variable('msg_id_lobotomyking', None)
+				await sql_db['bot_vars'].set_variable('msg_id_lobotomyking', 0)
 				await sql_db['bot_vars'].set_variable('king_id', elected_king.id)
 				await sql_db['votes'].dispose_old_election() #dropz za(za) @kkkingk👑👑👑 #hashtagg frnz revloutin 🤑🤑🤑🥵 I make better videos than penguinz0 -> https://youtu.be/-WdGSqeXCA0
 
 				await elected_king.add_role(json_obj['roles']['Lobotomy King/Queen']) # in tieguild due the tiebreaker (what?????)
 
-		await sql_db['bot_vars'].set_variable('last_day', current_time, None)
+		await sql_db['bot_vars'].set_variable('last_day', current_time, 0)
 		await sql_db.commit()
 		await asyncio.sleep(10)
 
