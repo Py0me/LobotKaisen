@@ -7,79 +7,89 @@ from interactions import (
 	Extension,
 )
 import interactions
-from time import time, gmtime
+from time import time
 from ..db import db
 from ..helpers.daycmp import same_day
-from ..helpers.search import *
-from ..helpers.botvar import *
-from ..helpers.votes import *
-from ..helpers.submitted_votes import *
+
+DEVELOPER_IDS = (
+	760876025830703185, # rgwy
+	538770497056538624, # pyome
+)
 
 class VoteExt(Extension):
-	@slash_command(name='vote', description='Vote for the next Lobotomy King/Queen', scopes=[931930956284178512])
+	@slash_command(name='vote', description='Vote for the next Lobotomy King/Queen')
 	@slash_option(name='candidate', description='The server member you want to vote for', opt_type=OptionType.USER, required=True)
 	async def vote(self, ctx: SlashContext, candidate: User):
 		await ctx.defer(ephemeral=True)
-		await db.init('lobotomy-db.sqlite')
-		async with db.db_conn.cursor() as db_cur:
-			exec_result = await db_cur.execute(
-				'SELECT vote_timestamp FROM submitted_votes WHERE voter_id = ?',
-				(int(ctx.user.id),)
+
+		json_db = db.JSONConnection('db/servers.json')
+		json_obj = json_db.get_json(ctx.guild.id)
+
+		if json_obj is None:
+			await ctx.send(
+				'This server does not support the requested feature!\n'
+				'Please open a new issue [here](https://github.com/Py0me/LobotKaisen/issues) with the ID and name of the current server.'
 			)
-			fetch_result = await exec_result.fetchone()
-			if fetch_result is not None and same_day(gmtime(fetch_result[0]), gmtime()) and ctx.user.id not in (760876025830703185, 538770497056538624):
-				await ctx.send('You have already used your daily vote! Vote again tomorrow!', ephemeral=True)
-				return
-			exec_result = await update_votes(int(candidate.id))
-			exec_result = await update_submitted_votes(int(ctx.user_id))
-			exec_result = await db_cur.execute(
-				'INSERT INTO submitted_votes('
-					'voter_id,'
-					'vote_timestamp'
-				') VALUES('
-					'?,'
-					'?'
-				') ON CONFLICT(voter_id) DO UPDATE SET vote_timestamp = ?',
-				(int(ctx.user.id), int(time()), int(time()))
-			)
-			vote_stats_channel = search_channelid(ctx.guild.channels, 'lobotkaisen-announce')
-			exec_result = await db_cur.execute(
-				'SELECT candidate_id, vote_count FROM votes ORDER BY vote_count DESC LIMIT 15'
-			)
-			leaderboard_val = []
-			i = 1
-			colors = (33, 37, 31)
-			async for row in exec_result:
-				leaderboard_val.append({
-					    'color' : colors[i - 1] if i <= len(colors) else 34,
-					     'rank' : i,
-					'candidate' : (await ctx.guild.fetch_member(row[0])).display_name,
-					    'votes' : row[1],
-				})
-				i += 1
-			max_len = 0
-			for row in leaderboard_val:
-				if len(row['candidate']) > max_len:
-					max_len = len(row['candidate'])
-			leaderboard = []
-			for row in leaderboard_val:
-				leaderboard.append('\033[%%(color)dm  %%(rank)2d. %%(candidate)-%ds : %%(votes)d Votes' % max_len % row)
-			leaderboard = (
-				'Top 15 Candidates for <@&%d>:\n'
-				'```ansi\n%s\n```'
-				'\n'
-				'Vote for your own candidate in <#%d>'
-			) % (search_role(ctx, 'Lobotomy King/Queen of the Day'), '\n'.join(leaderboard), search_channel(ctx, 'lobotkaisen-voting'))
-			fetch_result = await get_botvar('msg_id_lobotomyking')
-			vote_msg = None
-			if fetch_result is not None:
-				vote_msg = await vote_stats_channel.fetch_message(fetch_result)
-			if vote_msg is not None:
-				await vote_msg.edit(content=leaderboard)
-			else:
-				vote_msg = await vote_stats_channel.send(leaderboard)
-				await set_botvar('msg_id_lobotomyking', int(vote_msg.id))
-			await db.db_conn.commit()
+			return
+
+		sql_db = db.SQLConnection('lobotomy-db.sqlite')
+		sql_db.db_jump(json_obj['id'])
+
+		vote_timestamp = await sql_db['votes'].get_timestamp(ctx.user.id)
+		current_time = time()
+
+		if vote_timestamp is not None and same_day(vote_timestamp, current_time) and ctx.user.id not in DEVELOPER_IDS:
+			await ctx.send('You have already used your daily vote! Vote again tomorrow!', ephemeral=True)
+			return
+
+		await sql_db['votes'].submit_vote(candidate.id, ctx.user.id, current_time)
+
+		announce_channel = ctx.guild.fetch_channel(json_obj['channels']['announcement'])
+
+		lb_candidates = await sql_db['votes'].get_leaderboard(15)
+		lb_info = []
+		name_max = 0
+
+		LB_COLORS = (33, 37, 31)
+
+		for rank, candidate_id in lb_candidates:
+			info_obj = {
+				    'color' : LB_COLORS[rank] if rank <= len(LB_COLORS) else 34,
+				     'rank' : rank + 1,
+				'candidate' : (await ctx.guild.fetch_member(candidate_id)).display_name,
+				    'votes' : row[1],
+			}
+
+			if (name_len := len(info_obj['candidate'])) > name_max:
+				name_max = name_len
+
+			lb_info.append(info_obj)
+
+		leaderboard = (
+			'Top 15 Candidates for <@&%d>:\n'
+			'```ansi\n'
+			'%s\n'
+			'```\n'
+			'Vote for your own candidate in <#%d>'
+		) % (
+			json_obj['roles']['Lobotomy King/Queen'],
+			'\n'.join([(
+				'\033[%(color)dm  %(rank)2d. %(candidate)-' + str(name_max) + 's : %(votes)d Votes'
+			) % (info_obj + {'space': 0}) for info_obj in lb_info]),
+			json_obj['channels']['voting']
+		)
+
+		msg_id = await sql_db['bot_vars'].get_variable('msg_id_lobotomyking')
+		vote_msg = None
+
+		if msg_id is not None:
+			vote_msg = await announce_channel.fetch_message(msg_id)
+		if vote_msg is not None:
+			await vote_msg.edit(content=leaderboard)
+		else:
+			vote_msg = await announce_channel.send(leaderboard)
+			await sql_db['bot_vars'].set_variable('msg_id_lobotomyking', vote_msg.id)
+
 		await ctx.send('Your vote for <@%d> has been submitted' % candidate.id, ephemeral=True)
 
 def setup(bot):

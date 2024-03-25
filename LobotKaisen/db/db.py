@@ -4,7 +4,8 @@ import os
 import abc
 
 from argparse import Namespace
-from typing import Optional
+from typing import Optional, Any
+from time import time
 
 # TODO: implement thread-safe reference counter and garbage
 #       collection for DBConnection classes
@@ -12,14 +13,14 @@ db_enum = {}
 
 class DBConnection(abc.ABC):
 	def __init__(self, db_uri: str):
-		self._db_uri = os.path.realpath(db_uri)
+		self._db_uri = db_uri
+		self._db_conn = db_enum.get(self._db_uri)
+		if self._db_conn is None:
+			self._db_conn = aiosqlite.connect(db_uri)  # FIXME: Kylo Connection Denier
+			db_enum[self._db_uri] = self._db_conn
 		self._db_cur = None
 		self._db_next = None
 		self._db_next_list = self._db_init_next()
-		self._db_conn = db_enum.get(self._db_uri)
-		if self._db_conn is None:
-			self._db_conn = self._db_open()
-			db_enum[self._db_uri] = self._db_conn
 
 	def __iter__(self):
 		self._db_cur = 0
@@ -74,7 +75,7 @@ class SQLConnection(DBConnection):
 			with open(init_script, 'r', encoding='utf-8') as script_file:
 				await db_cur.executescript(script_file.read())
 
-	async def _sql_votes_get_timestamp(self, voter_id: int, server_id: int=...) -> int:
+	async def _sql_votes_get_timestamp(self, voter_id: int, server_id: int=...) -> float:
 		if server_id is ...:
 			server_id = self._db_next
 
@@ -86,6 +87,39 @@ class SQLConnection(DBConnection):
 			fetch_result = await exec_result.fetchone()
 
 			return None if fetch_result is None else fetch_result[0]
+
+	async def _sql_votes_submit_vote(self, candidate_id: int, voter_id: int, vote_timestamp: float=..., server_id: int=...):
+		if vote_timestamp is ...:
+			vote_timestamp = time()
+		if server_id is ...:
+			server_id = self._db_next
+
+		async with self._db_conn.cursor() as db_cur:
+			await db_cur.execute(
+				'INSERT INTO votes('
+					'candidate_id,'
+					'server_id,'
+					'vote_count'
+				') VALUES('
+					':candidate_id,'
+					':server_id,'
+					'1'
+				') ON CONFLICT DO UPDATE SET vote_count = vote_count + 1',
+				{'candidate_id': candidate_id, 'server_id': server_id}
+			)
+			await db_cur.execute(
+				'INSERT INTO submitted_votes('
+					'voter_id,'
+					'server_id,'
+					'vote_timestamp'
+				') VALUES('
+					':voter_id,'
+					':server_id,'
+					':vote_timestamp'
+				') ON CONFLICT DO UPDATE SET vote_timestamp = :vote_timestamp',
+				{'voter_id': voter_id, 'server_id': server_id, 'vote_timestamp': vote_timestamp}
+			)
+			self.commit()
 
 	async def _sql_votes_get_election_result(self, server_id: int=...) -> list[int]:
 		election_board = []
@@ -126,7 +160,18 @@ class SQLConnection(DBConnection):
 
 			return leaderboard
 
-	async def _sql_bot_vars_get_variable(self, var_name: str, server_id: int=...):
+	async def _sql_votes_dispose_old_election(self, server_id: int=...):
+		if server_id is ...:
+			server_id = self._db_next
+
+		async with self._db_conn.cursor() as db_cur:
+			await db_cur.execute(
+				'DELETE FROM votes WHERE server_id = :server_id',
+				{'server_id': server_id}
+			)
+			await self.commit()
+
+	async def _sql_bot_vars_get_variable(self, var_name: str, server_id: int=...) -> Any:
 		if server_id is ...:
 			server_id = self._db_next
 
@@ -163,7 +208,9 @@ class SQLConnection(DBConnection):
 			'votes': Namespace(
 				get_timestamp=self._sql_votes_get_timestamp,
 				get_election_result=self._sql_votes_get_election_result,
-				get_leaderboard=self._sql_votes_get_leaderboard
+				get_leaderboard=self._sql_votes_get_leaderboard,
+				dispose_old_election=self._sql_votes_dispose_old_election,
+				submit_vote=self._sql_votes_submit_vote
 			),
 			'bot_vars': Namespace(
 				get_variable=self._sql_bot_vars_get_variable,
@@ -180,7 +227,7 @@ class SQLConnection(DBConnection):
 class JSONConnection(DBConnection):
 	def _db_open(self) -> list[dict]:
 		with open(self._db_uri, 'r', encoding='utf-8') as json_db:
-			json_data = json.load(json_db)
+			return json.load(json_db)
 
 	def _db_init_next(self):
 		return self._db_conn

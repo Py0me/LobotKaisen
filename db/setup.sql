@@ -12,7 +12,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS votes_idx ON votes(
 CREATE TABLE IF NOT EXISTS submitted_votes(
 	voter_id INTEGER,
 	server_id INTEGER,
-	vote_timestamp INTEGER
+	vote_timestamp NUMERIC
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS submitted_votes_idx ON submitted_votes(
