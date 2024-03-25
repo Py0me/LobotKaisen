@@ -11,13 +11,9 @@ from time import time
 #       collection for DBConnection classes
 db_enum = {}
 
-class DBConnection(abc.ABC):
-	def __init__(self, db_uri: str):
-		self._db_uri = db_uri
-		self._db_conn = db_enum.get(self._db_uri)
-		if self._db_conn is None:
-			self._db_conn = aiosqlite.connect(db_uri)  # FIXME: Kylo Connection Denier
-			db_enum[self._db_uri] = self._db_conn
+class _DBConnection(abc.ABC):
+	def __init__(self, db_conn):
+		self._db_conn = db_conn  # FIXME: Kylo Connection Denier
 		self._db_cur = None
 		self._db_next = None
 		self._db_next_list = self._db_init_next()
@@ -27,19 +23,15 @@ class DBConnection(abc.ABC):
 		self._db_next_list = self._db_init_next()
 		if self._db_next_list is None:
 			raise NotImplementedError
+		else:
+			return self
 
 	def __next__(self):
-		if self._db_cur < len(self._db_next):
+		if self._db_cur < len(self._db_next_list):
 			self._db_next = self._db_next_list[self._db_cur]
+			self._db_cur += 1
 			return self._db_next
 		raise StopIteration
-
-	@abc.abstractmethod
-	def _db_open(self) -> "Connection":
-		'''
-		Method to open the database
-		'''
-		pass
 
 	@abc.abstractmethod
 	def _db_init_next(self) -> list:
@@ -59,15 +51,12 @@ class DBConnection(abc.ABC):
 		self._db_next = self._db_validate_next(next_entry)
 		return self._db_next
 
-class SQLConnection(DBConnection):
-	def _db_open(self) -> aiosqlite.Connection:
-		return aiosqlite.connect(self._db_uri)
-
+class _SQLConnection(_DBConnection):
 	def _db_init_next(self):
 		return None
 
 	def _db_validate_next(self, next_entry: int) -> Optional[int]:
-		if issubclass(next_entry, int):
+		if issubclass(type(next_entry), int):
 			return next_entry
 
 	async def db_init(self, init_script: str):
@@ -151,12 +140,12 @@ class SQLConnection(DBConnection):
 
 		async with self._db_conn.cursor() as db_cur:
 			exec_result = await db_cur.execute(
-				'SELECT candidate_id FROM votes WHERE server_id = :server_id ORDER BY vote_count DESC LIMIT :leaderboard_rows',
+				'SELECT candidate_id, vote_count FROM votes WHERE server_id = :server_id ORDER BY vote_count DESC LIMIT :leaderboard_rows',
 				{'leaderboard_rows': leaderboard_rows, 'server_id': server_id}
 			)
 
 			async for row in exec_result:
-				leaderboard.append(row[0])
+				leaderboard.append(row)
 
 			return leaderboard
 
@@ -224,16 +213,12 @@ class SQLConnection(DBConnection):
 	async def commit(self):
 		await self._db_conn.commit()
 
-class JSONConnection(DBConnection):
-	def _db_open(self) -> list[dict]:
-		with open(self._db_uri, 'r', encoding='utf-8') as json_db:
-			return json.load(json_db)
-
+class _JSONConnection(_DBConnection):
 	def _db_init_next(self):
 		return self._db_conn
 
 	def _db_validate_next(self, next_entry) -> Optional[int]:
-		if not issubclass(next_entry, (str, int)):
+		if not issubclass(type(next_entry), (str, int)):
 			return None
 		for entry in self._db_conn:
 			if entry.get('id') == next_entry or entry.get('name') == next_entry:
@@ -244,3 +229,20 @@ class JSONConnection(DBConnection):
 			return self._db_next
 		else:
 			return self._db_validate_next(obj_id)
+
+async def SQLConnection(db_uri: str) -> _SQLConnection:
+	db_uri = os.path.realpath(db_uri)
+	db_conn = db_enum.get(db_uri)
+	if db_conn is None:
+		db_conn = await aiosqlite.connect(db_uri)
+		db_enum[db_uri] = db_conn
+	return _SQLConnection(db_conn)
+
+async def JSONConnection(db_uri: str) -> _JSONConnection:
+	db_uri = os.path.realpath(db_uri)
+	db_conn = db_enum.get(db_uri)
+	if db_conn is None:
+		with open(db_uri, 'r', encoding='utf-8') as json_db:
+			db_conn = json.load(json_db)
+		db_enum[db_uri] = db_conn
+	return _JSONConnection(db_conn)

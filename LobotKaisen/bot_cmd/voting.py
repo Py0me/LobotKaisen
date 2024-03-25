@@ -22,7 +22,7 @@ class VoteExt(Extension):
 	async def vote(self, ctx: SlashContext, candidate: User):
 		await ctx.defer(ephemeral=True)
 
-		json_db = db.JSONConnection('db/servers.json')
+		json_db = await db.JSONConnection('db/servers.json')
 		json_obj = json_db.get_json(ctx.guild.id)
 
 		if json_obj is None:
@@ -32,7 +32,7 @@ class VoteExt(Extension):
 			)
 			return
 
-		sql_db = db.SQLConnection('lobotomy-db.sqlite')
+		sql_db = await db.SQLConnection('lobotomy-db.sqlite')
 		sql_db.db_jump(json_obj['id'])
 
 		vote_timestamp = await sql_db['votes'].get_timestamp(ctx.user.id)
@@ -44,7 +44,7 @@ class VoteExt(Extension):
 
 		await sql_db['votes'].submit_vote(candidate.id, ctx.user.id, current_time)
 
-		announce_channel = ctx.guild.fetch_channel(json_obj['channels']['announcement'])
+		announce_channel = await ctx.guild.fetch_channel(json_obj['channels']['announcement'])
 
 		lb_candidates = await sql_db['votes'].get_leaderboard(15)
 		lb_info = []
@@ -52,12 +52,12 @@ class VoteExt(Extension):
 
 		LB_COLORS = (33, 37, 31)
 
-		for rank, candidate_id in lb_candidates:
+		for rank, candidate_info in enumerate(lb_candidates):
 			info_obj = {
 				    'color' : LB_COLORS[rank] if rank <= len(LB_COLORS) else 34,
 				     'rank' : rank + 1,
-				'candidate' : (await ctx.guild.fetch_member(candidate_id)).display_name,
-				    'votes' : row[1],
+				'candidate' : (await ctx.guild.fetch_member(candidate_info[0])).display_name,
+				    'votes' : candidate_info[1],
 			}
 
 			if (name_len := len(info_obj['candidate'])) > name_max:
@@ -75,7 +75,7 @@ class VoteExt(Extension):
 			json_obj['roles']['Lobotomy King/Queen'],
 			'\n'.join([(
 				'\033[%(color)dm  %(rank)2d. %(candidate)-' + str(name_max) + 's : %(votes)d Votes'
-			) % (info_obj + {'space': 0}) for info_obj in lb_info]),
+			) % info_obj for info_obj in lb_info]),
 			json_obj['channels']['voting']
 		)
 

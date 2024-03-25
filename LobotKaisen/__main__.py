@@ -39,15 +39,15 @@ ROYAL_GIFS = {
 async def on_start(event: interactions.events.Ready):
 	status_iter = iter(STATUS_MSG)
 
-	sql_db = db.SQLConnection('lobotomy-db.sqlite')
+	sql_db = await db.SQLConnection('lobotomy-db.sqlite')
 	await sql_db.db_init('db/setup.sql')
-	json_db = db.JSONConnection('db/servers.json')
+	json_db = await db.JSONConnection('db/servers.json')
 
 	while True:
 		status_msg = next(status_iter, None)
 
 		if status_msg is None:
-			status_iter = iter(STATUS_MSG, None)
+			status_iter = iter(STATUS_MSG)
 			continue
 
 		await event.bot.change_presence(activity=status_msg)
@@ -86,7 +86,7 @@ async def on_start(event: interactions.events.Ready):
 					'Be sure to leave a royal message for everyone to see in <#%d>!\n'
 					'\n'
 					'[%s is proud of you](https://tenor.com/view/%s)' %
-					(elected_king.id, roayal_channel.id, gif_character, random.choice(ROYAL_GIFS[gif_character]))
+					(elected_king.id, royal_channel.id, gif_character, random.choice(ROYAL_GIFS[gif_character]))
 				)
 
 				perm_over = PermissionOverwrite.for_target(await current_guild.fetch_role(json_obj['roles']['Lobotomy King/Queen']))
@@ -107,9 +107,9 @@ async def on_start(event: interactions.events.Ready):
 async def on_message(event: interactions.api.events.MessageCreate):
 	messaged_guild = event.message.channel.guild
 
-	sql_db = db.SQLConnection('lobotomy-db.sqlite')
+	sql_db = await db.SQLConnection('lobotomy-db.sqlite')
 	sql_db.db_jump(messaged_guild.id)
-	json_db = db.JSONConnection('db/servers.json')
+	json_db = await db.JSONConnection('db/servers.json')
 	json_obj = json_db.get_json(messaged_guild.id)  # FIXME: verify returned value is not None
 
 	if not (event.message.channel.id == json_obj['channels']['royallobotomy'] and event.message.author.id == await sql_db['bot_vars'].get_variable('king_id')):
