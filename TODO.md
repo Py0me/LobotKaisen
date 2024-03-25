@@ -1,8 +1,8 @@
 # Development Milestones / ToDo List
 
- - [ ] Lobotomy King voting poll
-   - [ ] Vote leaderboard channel (updated daily)
-   - [ ] Winner announcement
+ - [x] Lobotomy King voting poll
+   - [x] Vote leaderboard channel (updated daily)
+   - [x] Winner announcement
  - [ ] Shitposting
    - [ ] Lobotomy meme template filler
    - [ ] LobotomyGPT for generating lobotomy edits given a specific topic
