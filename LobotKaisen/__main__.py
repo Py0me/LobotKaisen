@@ -13,7 +13,6 @@ EXTENSION_LIST = (
 	'voting',
 	'vip_invite',
 	'jjk_shitpost',
-	'test_err',
 )
 
 STATUS_MSG = (
