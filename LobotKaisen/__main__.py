@@ -64,7 +64,7 @@ async def on_start(event: interactions.events.Ready):
 
 			candidates = None
 
-			if previous_time is None or not same_day(previous_time, current_time):  # NOTE: same_minute() should be replaced with same_day() in the production version
+			if previous_time is None or not same_minute(previous_time, current_time):  # NOTE: same_minute() should be replaced with same_day() in the production version
 				king_id = await sql_db['bot_vars'].get_variable('king_id')
 
 				if king_id is not None:
