@@ -7,7 +7,7 @@ import asyncio
 import random
 import json
 from .db import db
-from .helpers.daycmp import same_minute
+from .helpers.daycmp import same_minute, same_day
 
 EXTENSION_LIST = (
 	'voting',
