@@ -16,7 +16,7 @@ class JJKShitpostExt(Extension):
 	@slash_option(name='first-insert', argument_name='first', description='The first term to insert into the template', opt_type=OptionType.STRING, required=True)
 	@slash_option(name='second-insert', argument_name='second', description='The second term to insert into the template', opt_type=OptionType.STRING, required=True)
 	@slash_option(name='public', description='Wether to post the generated quote publicly or not', opt_type=OptionType.BOOLEAN, required=False)
-	async def are_you_because(self, ctx: SlashContext, first: str, second: str, public: bool):
+	async def are_you_because(self, ctx: SlashContext, first: str, second: str, public: bool=None):
 		await ctx.send('Are you %(first)s because you are %(second)s, or are you %(second)s because you are %(first)s?' % {'first': first, 'second': second}, ephemeral=not public if public is not None else True)
 
 
