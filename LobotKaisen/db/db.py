@@ -108,7 +108,7 @@ class _SQLConnection(_DBConnection):
 				') ON CONFLICT DO UPDATE SET vote_timestamp = :vote_timestamp',
 				{'voter_id': voter_id, 'server_id': server_id, 'vote_timestamp': vote_timestamp}
 			)
-			self.commit()
+			await self.commit()
 
 	async def _sql_votes_get_election_result(self, server_id: int=...) -> list[int]:
 		election_board = []

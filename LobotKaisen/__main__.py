@@ -6,13 +6,21 @@ import time
 import asyncio
 import random
 import json
+import sys
 from .db import db
 from .helpers.daycmp import same_minute, same_day
+
+if sys.platform == 'win32':
+	from ctypes import windll
+	kernel32 = windll.LoadLibrary('kernel32')
+	# NOTE: enables support for ANSI color codes on windows
+	kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
 EXTENSION_LIST = (
 	'voting',
 	'vip_invite',
 	'jjk_shitpost',
+	'test_err',
 )
 
 STATUS_MSG = (
@@ -120,12 +128,46 @@ async def on_message(event: interactions.api.events.MessageCreate):
 
 @listen(interactions.api.events.CommandError, disable_default_listeners= True)
 async def on_error(event: interactions.api.events.CommandError):
-	await event.ctx.send('Wowzers! Something went wrong on our side. Sorry for that. Try again later or ask a <@&1208851554850045982>. Happy Lobotomizing!', ephemeral=True)
+	json_db = await db.JSONConnection('db/servers.json')
+	json_obj = json_db.get_json(event.ctx.guild.id)
+
+	dev_role = None if json_obj is None else json_obj['roles']['Developer']
+
+	try:
+		raise event.error
+	except Exception as tb:
+		event.bot.logger.exception(tb)
+
+	await event.ctx.send(
+		'Wowzers! Something went wrong on our side. Sorry for that.\n'
+		'%s. Happy Lobotomizing!' %
+		(('Try again later or ask a <@&%s>' % dev_role) if dev_role is not None else 'Try again later or open a new issue [here](https://github.com/Py0me/LobotKaisen/issues)'),
+		ephemeral=True
+	)
 
 def main():
-	logging.basicConfig()
 	cls_log = logging.getLogger('LogKaisen')
 	cls_log.setLevel(logging.DEBUG)
+
+	ANSI = '\033[%dm'
+	ANSI_NUL = ANSI % 0
+	ANSI_RED = ANSI % 31
+	ANSI_GRN = ANSI % 32
+	ANSI_YEL = ANSI % 33
+	ANSI_BLU = ANSI % 34
+
+	log_formatter = logging.Formatter('[%(asctime)s] %(name)s##%(levelname)s: %(message)s')
+	log_ansi_formatter = logging.Formatter('[' + ANSI_GRN + '%(asctime)s' + ANSI_NUL + '] ' + ANSI_BLU + '%(name)s' + ANSI_NUL + '##' + ANSI_RED + '%(levelname)s' + ANSI_NUL + ': %(message)s')
+
+	log_console_handler = logging.StreamHandler()
+	log_console_handler.setLevel(logging.INFO)
+	log_console_handler.setFormatter(log_ansi_formatter)
+	cls_log.addHandler(log_console_handler)
+
+	log_file_handler = logging.FileHandler('lobotomy.log')
+	log_file_handler.setLevel(logging.DEBUG)
+	log_file_handler.setFormatter(log_formatter)
+	cls_log.addHandler(log_file_handler)
 
 	bot = interactions.Client(
 		intents=interactions.Intents.DEFAULT | interactions.Intents.MESSAGE_CONTENT,
