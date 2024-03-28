@@ -121,7 +121,7 @@ async def on_message(event: interactions.api.events.MessageCreate):
 	if not (event.message.channel.id == json_obj['channels']['royallobotomy'] and event.message.author.id == await sql_db['bot_vars'].get_variable('king_id')):
 		return
 
-	perm_over = PermissionOverwrite.for_target(json_obj['roles']['Lobotomy King/Queen'])
+	perm_over = PermissionOverwrite.for_target(await messaged_guild.fetch_role(json_obj['roles']['Lobotomy King/Queen']))
 	perm_over.add_denies(Permissions.SEND_MESSAGES)
 	await event.message.channel.edit_permission(perm_over)
 
@@ -171,7 +171,9 @@ def main():
 	bot = interactions.Client(
 		intents=interactions.Intents.DEFAULT | interactions.Intents.MESSAGE_CONTENT,
 		sync_interactions=True,
+		delete_unused_application_cmds=True,
 		asyncio_debug=True,
+		send_command_tracebacks=False,
 		logger=cls_log
 	)
 
