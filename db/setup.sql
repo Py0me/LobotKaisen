@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS votes(
-	candidate_id INTEGER,
-	server_id INTEGER,
+	candidate_id INTEGER NOT NULL,
+	server_id INTEGER NOT NULL,
 	vote_count INTEGER
 );
 
@@ -10,8 +10,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS votes_idx ON votes(
 );
 
 CREATE TABLE IF NOT EXISTS submitted_votes(
-	voter_id INTEGER,
-	server_id INTEGER,
+	voter_id INTEGER NOT NULL,
+	server_id INTEGER NOT NULL,
 	vote_timestamp NUMERIC
 );
 
@@ -21,8 +21,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS submitted_votes_idx ON submitted_votes(
 );
 
 CREATE TABLE IF NOT EXISTS bot_vars(
-	var TEXT,
-	server_id INTEGER,
+	var TEXT NOT NULL,
+	server_id INTEGER NOT NULL,
 	val
 );
 

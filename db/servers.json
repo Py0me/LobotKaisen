@@ -2,6 +2,10 @@
 	{
 		"name": "Lobotomy Kaisen",
 		"id": 1192206024002785300,
+		"features": [
+			"vip-invites",
+			"lobotomy-voting"
+		],
 		"channels": {
 			"announcement": 1200350797892948008,
 			"voting": 1192421921019662386,
@@ -15,6 +19,10 @@
 	{
 		"name": "Bot Development",
 		"id": 931930956284178512,
+		"features": [
+			"vip-invites",
+			"lobotomy-voting"
+		],
 		"channels": {
 			"announcement": 1203409239352025209,
 			"voting": 1202722215942946976,
