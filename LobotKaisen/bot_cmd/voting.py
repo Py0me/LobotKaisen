@@ -25,7 +25,7 @@ class VoteExt(Extension):
 		json_db = await db.JSONConnection('db/servers.json')
 		json_obj = json_db.get_json(ctx.guild.id)
 
-		if json_obj is None:
+		if json_obj is None or 'lobotomy-voting' not in json_obj['features']:
 			await ctx.send(
 				'This server does not support the requested feature!\n'
 				'Please open a new issue [here](https://github.com/Py0me/LobotKaisen/issues) with the ID and name of the current server.'

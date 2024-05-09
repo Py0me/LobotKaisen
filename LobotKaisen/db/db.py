@@ -166,7 +166,7 @@ class _SQLConnection(_DBConnection):
 
 		async with self._db_conn.cursor() as db_cur:
 			exec_result = await db_cur.execute(
-				'SELECT val FROM bot_vars WHERE var = :var_name AND server_id IS :server_id',
+				'SELECT val FROM bot_vars WHERE var = :var_name AND server_id = :server_id',
 				{'var_name': var_name, 'server_id': server_id}
 			)
 			fetch_result = await exec_result.fetchone()
