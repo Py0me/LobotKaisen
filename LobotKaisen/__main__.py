@@ -75,8 +75,9 @@ async def on_start(event: interactions.events.Ready):
 			if previous_time is None or not same_minute(previous_time, current_time):  # NOTE: same_minute() should be replaced with same_day() in the production version
 				king_id = await sql_db['bot_vars'].get_variable('king_id')
 
-				if king_id is not None:
-					elected_king = await current_guild.fetch_member(king_id)
+				elected_king = (await current_guild.fetch_member(king_id)) if king_id is not None else None
+
+				if elected_king is not None:
 					await elected_king.remove_role(json_obj['roles']['Lobotomy King/Queen'])
 
 				candidates = await sql_db['votes'].get_election_result()
